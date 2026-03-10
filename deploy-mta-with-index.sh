@@ -4,15 +4,20 @@ set -e
 # Simple script to deploy MTA using INDEX_IMAGE
 # Usage: ./deploy-mta-with-index.sh <INDEX_IMAGE> [MTA_VERSION] [PULL_SECRET_FILE]
 # Example: ./deploy-mta-with-index.sh quay.io/redhat-user-workloads/ocp-art-tenant/art-fbc:v4.21__operator_nvr__mta-operator-container-8.1.0-202602100135.p2.ga1f4b61.assembly.stream.el9 8.1.0
+#
+# Set SKIP_SETUP=1 to skip namespace creation, pull secret, mirror sets, and MCP wait
+# (steps 1-5), going straight to CatalogSource creation. Useful when cluster
+# infrastructure (mirroring, pull secrets) is already configured.
 
 INDEX_IMAGE="${1:-$INDEX_IMAGE}"
 MTA_VERSION="${2:-$MTA_VERSION}"
 PULL_SECRET_FILE="${3:-$PULL_SECRET_FILE}"
 SOURCE_REGISTRY="${SOURCE_REGISTRY:-registry.redhat.io}"
-MIRROR_REGISTRY="${MIRROR_REGISTRY:-registry.stage.redhat.com}"
+MIRROR_REGISTRY="${MIRROR_REGISTRY:-registry.stage.redhat.io}"
 NAMESPACE="${MTA_NAMESPACE:-openshift-mta}"
 CATALOG_SOURCE_NAME="${MTA_CATALOGSOURCE:-mta-konflux-catalog}"
 CHANNEL="${MTA_CHANNEL:-stable-v8.1}"
+SKIP_SETUP="${SKIP_SETUP:-}"
 
 if [ -z "$INDEX_IMAGE" ]; then
     echo "Error: INDEX_IMAGE is required"
@@ -46,7 +51,14 @@ echo "CHANNEL: $CHANNEL"
 echo "PULL_SECRET_FILE: ${PULL_SECRET_FILE:-<not set>}"
 echo "SOURCE_REGISTRY: $SOURCE_REGISTRY"
 echo "MIRROR_REGISTRY: $MIRROR_REGISTRY"
+echo "SKIP_SETUP: ${SKIP_SETUP:-<not set>}"
 echo "=========================================="
+
+if [ -n "$SKIP_SETUP" ]; then
+echo "SKIP_SETUP is set, skipping steps 1-5 (namespace, pull secret, mirrors, MCP wait)..."
+echo "Ensuring namespace $NAMESPACE exists..."
+oc create namespace $NAMESPACE --dry-run=client -o yaml | oc apply -f -
+else
 
 # Step 1: Create namespace
 echo "Step 1: Creating namespace $NAMESPACE..."
@@ -130,6 +142,8 @@ done
 
 fi
 
+fi
+
 # Step 6: Create CatalogSource
 echo "Step 6: Creating CatalogSource from INDEX_IMAGE..."
 cat <<EOF | oc apply -f -
@@ -185,14 +199,14 @@ EOF
 # Step 10: Wait for CSV to be installed
 echo "Step 10: Waiting for ClusterServiceVersion to be ready..."
 timeout 600 bash -c '
-  until oc get csv -n '"$NAMESPACE"' -o jsonpath="{.items[?(@.metadata.name~=\"mta-operator.*\")].status.phase}" 2>/dev/null | grep -q Succeeded; do
+  until oc get csv -n '"$NAMESPACE"' --no-headers 2>/dev/null | grep "^mta-operator" | grep -q Succeeded; do
     echo "Waiting for CSV... Current CSVs:"
     oc get csv -n '"$NAMESPACE"' 2>/dev/null || true
     sleep 10
   done
 '
 
-CSV_NAME=$(oc get csv -n $NAMESPACE -o jsonpath="{.items[?(@.metadata.name~='mta-operator.*')].metadata.name}")
+CSV_NAME=$(oc get csv -n "$NAMESPACE" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | grep "^mta-operator")
 echo "ClusterServiceVersion $CSV_NAME is ready!"
 
 # Step 11: Wait for operator deployment to be ready
