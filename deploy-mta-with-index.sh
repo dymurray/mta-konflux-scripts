@@ -222,6 +222,26 @@ metadata:
   name: mta
   namespace: $NAMESPACE
 spec:
+  provider_c_sharp_container_requests_memory: 512Mi
+  provider_c_sharp_container_limits_memory: 512Mi
+  provider_c_sharp_container_requests_cpu: 500m
+  provider_c_sharp_container_limits_cpu: 500m
+  language_discovery_container_limits_cpu: 500m
+  language_discovery_container_requests_cpu: 500m
+  language_discovery_container_limits_memory: 512Mi
+  language_discovery_container_requests_memory: 512Mi
+  analyzer_container_limits_cpu: 500m
+  analyzer_container_requests_cpu: 500m
+  analyzer_container_limits_memory: 512Mi
+  analyzer_container_requests_memory: 512Mi
+  provider_generic_container_limits_cpu: 500m
+  provider_generic_container_requests_cpu: 500m
+  provider_generic_container_limits_memory: 512Mi
+  provider_generic_container_requests_memory: 512Mi
+  provider_nodejs_container_limits_cpu: 500m
+  provider_nodejs_container_requests_cpu: 500m
+  provider_nodejs_container_limits_memory: 512Mi
+  provider_nodejs_container_requests_memory: 512Mi
   hub_bucket_volume_size: "25Gi"
   cache_data_volume_size: "25Gi"
 EOF
