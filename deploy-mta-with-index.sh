@@ -64,6 +64,9 @@ else
 echo "Step 1: Creating namespace $NAMESPACE..."
 oc create namespace $NAMESPACE --dry-run=client -o yaml | oc apply -f -
 
+echo "Disable community-operators"
+oc patch operatorhubs/cluster --type merge --patch '{"spec":{"sources":[{"disabled": true,"name": "community-operators"},{"disabled": true,"name": "certified-operators"}]}}'
+
 if [ -n "$PULL_SECRET_FILE" ]; then
 
 # Step 2: Update global cluster pull secret
